@@ -1,30 +1,27 @@
-FROM php:8.2-fpm-alpine
+FROM php:8.2-apache
 
-# Установка системных зависимостей
-RUN apk update && apk add --no-cache \
-    postgresql-dev \
-    libzip-dev \
-    zip \
-    unzip \
-    curl \
-    git
+ENV TZ=Europe/Warsaw
 
-# Установка PHP расширений
-RUN docker-php-ext-install pdo pdo_pgsql zip
+# Системные пакеты и PHP-расширения
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libpq-dev git unzip cron msmtp ca-certificates \
+ && docker-php-ext-install pdo pdo_pgsql \
+ && a2enmod rewrite \
+ && rm -rf /var/lib/apt/lists/*
 
-# Установка Composer
-RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
+# Composer (копируем бинарник из официального образа)
+COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
-# Создание рабочей директории
 WORKDIR /var/www/html
 
-# Копирование файлов приложения
-COPY . .
+# Предустановка зависимостей на этапе сборки (на старте контейнера тоже проверяем в docker-compose)
+COPY ./src/composer.json /var/www/html/
+RUN composer install --no-interaction --prefer-dist || true
 
-# Установка прав
-RUN chown -R www-data:www-data /var/www/html
+# Настройка почты через msmtp для функции mail()/PHPMailer
+RUN printf "defaults\naccount default\nhost mailhog\nport 1025\nauto_from on\nfrom no-reply@bookstore.local\n" > /etc/msmtprc \
+ && chmod 600 /etc/msmtprc \
+ && echo 'sendmail_path = "/usr/bin/msmtp -t"' > /usr/local/etc/php/conf.d/sendmail.ini
 
-# Открытие порта
-EXPOSE 9000
-
-CMD ["php-fpm"]
+# Разрешить .htaccess
+RUN sed -i 's/AllowOverride None/AllowOverride All/g' /etc/apache2/apache2.conf

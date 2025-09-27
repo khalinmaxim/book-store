@@ -1,0 +1,5 @@
+SHELL=/bin/sh
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+
+# Ежедневно в 09:00 по Europe/Moscow рассылка напоминаний
+0 9 * * * root php /var/www/html/scripts/send_reminders.php >> /var/log/cron.log 2>&1

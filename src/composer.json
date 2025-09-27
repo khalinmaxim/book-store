@@ -1,0 +1,6 @@
+{
+  "name": "bookstore/app",
+  "require": {
+    "phpmailer/phpmailer": "^6.9"
+  }
+}
